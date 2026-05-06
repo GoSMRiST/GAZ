@@ -1,0 +1,29 @@
+# Не наши сервисы
+messenger/
+ProtosGaz/
+
+# Секреты — никогда не коммитим
+**/internal/config/config.env
+
+# Бинарники
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+app
+migrator
+
+# Тесты
+*.test
+*.out
+coverage.html
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,111 @@
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: smrist
+      POSTGRES_PASSWORD: DataBaseSmristPass
+      POSTGRES_DB: postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U smrist -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    ports:
+      - "6379:6379"
+
+  migrate_auth:
+    build:
+      context: ./auth_users
+    command: ["./migrator"]
+    env_file:
+      - ./auth_users/internal/config/config.env
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: users
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  migrate_rooms:
+    build:
+      context: ./rooms
+    command: ["./migrator"]
+    env_file:
+      - ./rooms/internal/config/config.env
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: rooms
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  auth_users:
+    build:
+      context: ./auth_users
+    env_file:
+      - ./auth_users/internal/config/config.env
+    environment:
+      REST_AUTH_HOST_ADDRESS: ":8080"
+      REST_USER_HOST_ADDRESS: ":8081"
+      GRPC_AUTH_PORT: "50051"
+      GRPC_USER_PORT: "50052"
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: users
+      REDIS_ADDRESS: "redis:6379"
+    volumes:
+      # В коде прописано engine.Static("/static", "../static").
+      # Рабочая директория контейнера /app, значит ../static = /static.
+      # Монтируем папку с аватарами именно туда.
+      - ./static:/static:ro
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+    depends_on:
+      migrate_auth:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  rooms:
+    build:
+      context: ./rooms
+    env_file:
+      - ./rooms/internal/config/config.env
+    environment:
+      REST_ROOMS_HOST_ADDRESS: ":8083"
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: rooms
+      AUTH_GRPC_ADDR: "auth_users:50051"
+      USER_GRPC_ADDR: "auth_users:50052"
+    ports:
+      - "8083:8083"
+    depends_on:
+      migrate_rooms:
+        condition: service_completed_successfully
+      auth_users:
+        condition: service_started
+    restart: unless-stopped
+
+volumes:
+  pgdata:
