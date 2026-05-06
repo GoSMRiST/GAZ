@@ -1,0 +1,32 @@
+# Бинарники
+rooms
+rooms.exe
+app
+app.exe
+migrator
+migrator.exe
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Тесты и покрытие
+*.test
+*.out
+coverage.html
+
+# Секреты
+internal/config/config.env
+
+# Vendor
+vendor/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
